@@ -1,0 +1,263 @@
+﻿@using System.Text.Json
+@using static BlazorHishamckoDemo.Client.Pages.Home
+
+<style>
+    .dropdown {
+        position: relative;
+        display: inline-block;
+    }
+
+    .dropdown-toggle {
+        padding: 8px 16px;
+        background: white;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+
+    .dropdown-menu {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        z-index: 1000;
+        min-width: 250px;
+        padding: 8px 0;
+        background: white;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    .dropdown-item {
+        padding: 8px 16px;
+        cursor: pointer;
+        white-space: nowrap;
+        display: flex;
+        align-items: center;
+    }
+
+        .dropdown-item:hover {
+            background-color: #f5f5f5;
+        }
+
+        .dropdown-item.active {
+            background-color: #e9ecef;
+        }
+
+    .dropdown-group {
+        padding-left: 8px;
+        border-left: 2px solid #ddd;
+        margin-left: 8px;
+    }
+
+    .group-header {
+        padding: 8px 16px;
+        font-weight: bold;
+        color: #6c757d;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+    }
+
+        .group-header:hover {
+            background-color: #f5f5f5;
+        }
+
+    .expand-icon {
+        margin-right: 8px;
+        cursor: pointer;
+    }
+
+    .level-1 {
+        padding-left: 20px;
+    }
+
+    .level-2 {
+        padding-left: 40px;
+    }
+
+    .level-3 {
+        padding-left: 60px;
+    }
+</style>
+
+<div class="dropdown @(IsOpen ? "show" : "")">
+    <button class="dropdown-toggle"
+            @onclick="ToggleDropdown"
+            @onkeydown="HandleKeyDown"
+            @ref="dropdownRef">
+        @(SelectedItem != null ? SelectedItem.Label : "Select an item")
+    </button>
+
+    @if (IsOpen)
+    {
+        <div class="dropdown-menu show">
+            @foreach (var item in TopLevelItems)
+            {
+                @if (item.IsGroup)
+                {
+                    <div class="dropdown-group">
+                        <div class="group-header" @onclick="() => ToggleGroup(item.Id)">
+                            <span class="expand-icon">
+                                @(ExpandedGroups.Contains(item.Id) ? "-" : "+")
+                            </span>
+                            @item.Label
+                        </div>
+                        @if (ExpandedGroups.Contains(item.Id))
+                        {
+                            @RenderChildItems(item.Id)
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="dropdown-item @(item.Id == SelectedValue ? "active" : "")"
+                         @onclick="() => SelectItem(item)">
+                        @GetIndentation(item.Level) @item.Label
+                    </div>
+                }
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private HashSet<string> ExpandedGroups { get; set; } = new();
+
+    private void ToggleGroup(string groupId)
+    {
+        if (ExpandedGroups.Contains(groupId))
+        {
+            ExpandedGroups.Remove(groupId);
+        }
+        else
+        {
+            ExpandedGroups.Add(groupId);
+        }
+    }
+}
+@code {
+    [Parameter]
+    public List<DropdownItem> Items { get; set; } = new();
+
+    [Parameter]
+    public string SelectedValue { get; set; }
+
+    [Parameter]
+    public EventCallback<string> SelectedValueChanged { get; set; }
+
+    private bool IsOpen { get; set; }
+    private DropdownItem SelectedItem => Items.FirstOrDefault(i => i.Id == SelectedValue);
+
+    private List<DropdownItem> TopLevelItems =>
+        Items.Where(i => string.IsNullOrEmpty(i.ParentId)).ToList();
+
+    private void ToggleDropdown()
+    {
+        IsOpen = !IsOpen;
+    }
+
+    private async Task SelectItem(DropdownItem item)
+    {
+        if (item.IsGroup) return;
+
+        SelectedValue = item.Id;
+        await SelectedValueChanged.InvokeAsync(SelectedValue);
+        IsOpen = false;
+        StateHasChanged();
+    }
+
+    private RenderFragment RenderChildItems(string parentId) => builder =>
+    {
+        var children = Items.Where(i => i.ParentId == parentId).ToList();
+
+        foreach (var child in children)
+        {
+            builder.OpenElement(0, "div");
+            builder.AddAttribute(1, "class",
+                $"dropdown-item {(child.Id == SelectedValue ? "active" : "")} level-{child.Level}");
+            builder.AddAttribute(2, "onclick",
+                EventCallback.Factory.Create(this, () => SelectItem(child)));
+
+            // Add indentation
+            builder.AddContent(3, GetIndentation(child.Level));
+            builder.AddContent(4, child.Label);
+
+            builder.CloseElement();
+
+            // Recursively render children if this is a group
+            if (child.IsGroup)
+            {
+                builder.OpenElement(5, "div");
+                builder.AddAttribute(6, "class", "dropdown-group");
+                builder.AddContent(7, RenderChildItems(child.Id));
+                builder.CloseElement();
+            }
+        }
+    };
+
+    private string GetIndentation(int level)
+    {
+        return new string(' ', level * 4);
+    }
+
+    // Add these to the @code block
+    private ElementReference dropdownRef;
+    private int focusedIndex = -1;
+    private List<DropdownItem> allVisibleItems = new();
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        UpdateVisibleItems();
+    }
+
+    private void UpdateVisibleItems()
+    {
+        allVisibleItems = new List<DropdownItem>();
+        foreach (var item in TopLevelItems)
+        {
+            AddItemAndChildren(item);
+        }
+    }
+
+    private void AddItemAndChildren(DropdownItem item)
+    {
+        allVisibleItems.Add(item);
+        if (item.IsGroup)
+        {
+            foreach (var child in Items.Where(i => i.ParentId == item.Id))
+            {
+                AddItemAndChildren(child);
+            }
+        }
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (!IsOpen) return;
+
+        switch (e.Key)
+        {
+            case "ArrowDown":
+                focusedIndex = Math.Min(focusedIndex + 1, allVisibleItems.Count - 1);
+                break;
+            case "ArrowUp":
+                focusedIndex = Math.Max(focusedIndex - 1, 0);
+                break;
+            case "Enter":
+                if (focusedIndex >= 0 && focusedIndex < allVisibleItems.Count)
+                {
+                    await SelectItem(allVisibleItems[focusedIndex]);
+                }
+                break;
+            case "Escape":
+                IsOpen = false;
+                break;
+        }
+
+        StateHasChanged();
+    }
+}

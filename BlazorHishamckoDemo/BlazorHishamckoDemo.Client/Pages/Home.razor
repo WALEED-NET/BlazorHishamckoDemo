@@ -1,0 +1,67 @@
+﻿@page "/"
+
+<PageTitle>Home</PageTitle>
+
+
+<h3>Multi-Level Dropdown Demo</h3>
+
+<MultiLevelDropdown Items="dropdownItems"
+                    SelectedValue="selectedValue"
+                    SelectedValueChanged="OnValueChanged" />
+
+
+<p>Selected Value: @selectedValue</p>
+
+@code {
+    private List<DropdownItem> dropdownItems = new();
+    private string selectedValue = "item3";
+
+    protected override void OnInitialized()
+    {
+        // Build sample data
+        dropdownItems = new List<DropdownItem>
+        {
+            new DropdownItem { Id = "group1", Label = "Fruits", IsGroup = true, Level = 0 },
+            new DropdownItem { Id = "item1", Label = "Apple", ParentId = "group1", Level = 1 },
+            new DropdownItem { Id = "item2", Label = "Banana", ParentId = "group1", Level = 1 },
+            new DropdownItem { Id = "subgroup1", Label = "Citrus", ParentId = "group1", IsGroup = true, Level = 1 },
+            new DropdownItem { Id = "item3", Label = "Orange", ParentId = "subgroup1", Level = 2 },
+            new DropdownItem { Id = "item4", Label = "Lemon", ParentId = "subgroup1", Level = 2 },
+
+            new DropdownItem { Id = "group2", Label = "Vegetables", IsGroup = true, Level = 0 },
+            new DropdownItem { Id = "item5", Label = "Carrot", ParentId = "group2", Level = 1 },
+            new DropdownItem { Id = "item6", Label = "Broccoli", ParentId = "group2", Level = 1 }
+        };
+    }
+
+    private async Task OnValueChanged(string newValue)
+    {
+        selectedValue = newValue;
+        // You can add additional logic here when the selection changes
+    }
+}
+
+
+@code{
+
+
+
+
+
+
+    public class DropdownItem
+    {
+        public string Id { get; set; }
+        public string Label { get; set; }
+        public string ParentId { get; set; }
+        public bool IsGroup { get; set; }
+        public int Level { get; set; }
+        public string Icon { get; set; } // Optional
+    }
+
+    public class DropdownData
+    {
+        public List<DropdownItem> Items { get; set; } = new();
+        public string SelectedValue { get; set; }
+    }
+}
