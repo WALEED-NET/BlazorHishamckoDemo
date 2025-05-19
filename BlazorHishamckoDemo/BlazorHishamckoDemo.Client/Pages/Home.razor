@@ -2,13 +2,11 @@
 
 <PageTitle>Home</PageTitle>
 
-
 <h3>Multi-Level Dropdown Demo</h3>
 
 <MultiLevelDropdown Items="dropdownItems"
                     SelectedValue="selectedValue"
                     SelectedValueChanged="OnValueChanged" />
-
 
 <p>Selected Value: @selectedValue</p>
 
@@ -18,36 +16,38 @@
 
     protected override void OnInitialized()
     {
-        // Build sample data
         dropdownItems = new List<DropdownItem>
         {
-            new DropdownItem { Id = "group1", Label = "Fruits", IsGroup = true, Level = 0 },
-            new DropdownItem { Id = "item1", Label = "Apple", ParentId = "group1", Level = 1 },
-            new DropdownItem { Id = "item2", Label = "Banana", ParentId = "group1", Level = 1 },
-            new DropdownItem { Id = "subgroup1", Label = "Citrus", ParentId = "group1", IsGroup = true, Level = 1 },
-            new DropdownItem { Id = "item3", Label = "Orange", ParentId = "subgroup1", Level = 2 },
-            new DropdownItem { Id = "item4", Label = "Lemon", ParentId = "subgroup1", Level = 2 },
+            new DropdownItem { Id = "group1", Label = "Electronics", IsGroup = true, Icon = "📱" },
+            new DropdownItem { Id = "item1", Label = "Smartphones", ParentId = "group1", Icon = "📞" },
+            new DropdownItem { Id = "item2", Label = "Laptops", ParentId = "group1", Icon = "💻" },
+            new DropdownItem { Id = "subgroup1", Label = "Accessories", ParentId = "group1", IsGroup = true, Icon = "🎧" },
+            new DropdownItem { Id = "item3", Label = "Headphones", ParentId = "subgroup1", Icon = "🎵" },
+            new DropdownItem { Id = "item4", Label = "Chargers", ParentId = "subgroup1", Icon = "🔌" },
 
-            new DropdownItem { Id = "group2", Label = "Vegetables", IsGroup = true, Level = 0 },
-            new DropdownItem { Id = "item5", Label = "Carrot", ParentId = "group2", Level = 1 },
-            new DropdownItem { Id = "item6", Label = "Broccoli", ParentId = "group2", Level = 1 }
+            new DropdownItem { Id = "group2", Label = "Home Appliances", IsGroup = true, Icon = "🏠" },
+            new DropdownItem { Id = "item5", Label = "Refrigerators", ParentId = "group2", Icon = "❄️" },
+            new DropdownItem { Id = "item6", Label = "Microwaves", ParentId = "group2", Icon = "🍴" },
+            new DropdownItem { Id = "subgroup2", Label = "Kitchen Tools", ParentId = "group2", IsGroup = true, Icon = "🍳" },
+            new DropdownItem { Id = "item7", Label = "Blenders", ParentId = "subgroup2", Icon = "🥤" },
+            new DropdownItem { Id = "item8", Label = "Mixers", ParentId = "subgroup2", Icon = "🍰" },
+
+            new DropdownItem { Id = "group3", Label = "Books", IsGroup = true, Icon = "📚" },
+            new DropdownItem { Id = "item9", Label = "Fiction", ParentId = "group3", Icon = "📖" },
+            new DropdownItem { Id = "item10", Label = "Non-Fiction", ParentId = "group3", Icon = "📘" },
+            new DropdownItem { Id = "subgroup3", Label = "Genres", ParentId = "group3", IsGroup = true, Icon = "📑" },
+            new DropdownItem { Id = "item11", Label = "Mystery", ParentId = "subgroup3", Icon = "🕵️" },
+            new DropdownItem { Id = "item12", Label = "Science Fiction", ParentId = "subgroup3", Icon = "🚀" },
+            new DropdownItem { Id = "subsubgroup1", Label = "Classic Sci-Fi", ParentId = "item12", IsGroup = true, Icon = "📜" },
+            new DropdownItem { Id = "item13", Label = "Dune", ParentId = "subsubgroup1", Icon = "🏜️" },
+            new DropdownItem { Id = "item14", Label = "Foundation", ParentId = "subsubgroup1", Icon = "🏛️" }
         };
     }
 
     private async Task OnValueChanged(string newValue)
     {
         selectedValue = newValue;
-        // You can add additional logic here when the selection changes
     }
-}
-
-
-@code{
-
-
-
-
-
 
     public class DropdownItem
     {
@@ -55,13 +55,6 @@
         public string Label { get; set; }
         public string ParentId { get; set; }
         public bool IsGroup { get; set; }
-        public int Level { get; set; }
-        public string Icon { get; set; } // Optional
-    }
-
-    public class DropdownData
-    {
-        public List<DropdownItem> Items { get; set; } = new();
-        public string SelectedValue { get; set; }
+        public string Icon { get; set; }
     }
 }

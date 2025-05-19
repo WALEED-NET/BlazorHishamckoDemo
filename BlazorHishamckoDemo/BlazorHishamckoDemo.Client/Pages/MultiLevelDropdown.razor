@@ -8,24 +8,30 @@
     }
 
     .dropdown-toggle {
-        padding: 8px 16px;
-        background: white;
-        border: 1px solid #ccc;
+        padding: 10px 16px;
+        background: #007bff;
+        color: white;
+        border: 1px solid #007bff;
         border-radius: 4px;
         cursor: pointer;
+        font-weight: bold;
     }
+
+        .dropdown-toggle:hover {
+            background: #0056b3;
+        }
 
     .dropdown-menu {
         position: absolute;
         top: 100%;
         left: 0;
         z-index: 1000;
-        min-width: 250px;
+        min-width: 300px;
         padding: 8px 0;
-        background: white;
-        border: 1px solid #ccc;
+        background: #f8f9fa;
+        border: 1px solid #ddd;
         border-radius: 4px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
         max-height: 400px;
         overflow-y: auto;
     }
@@ -36,14 +42,16 @@
         white-space: nowrap;
         display: flex;
         align-items: center;
+        font-size: 14px;
     }
 
         .dropdown-item:hover {
-            background-color: #f5f5f5;
+            background-color: #e9ecef;
         }
 
         .dropdown-item.active {
-            background-color: #e9ecef;
+            background-color: #007bff;
+            color: white;
         }
 
     .dropdown-group {
@@ -55,19 +63,20 @@
     .group-header {
         padding: 8px 16px;
         font-weight: bold;
-        color: #6c757d;
+        color: #495057;
         cursor: pointer;
         display: flex;
         align-items: center;
     }
 
         .group-header:hover {
-            background-color: #f5f5f5;
+            background-color: #e9ecef;
         }
 
     .expand-icon {
         margin-right: 8px;
         cursor: pointer;
+        font-size: 14px;
     }
 
     .level-1 {
@@ -80,6 +89,10 @@
 
     .level-3 {
         padding-left: 60px;
+    }
+
+    .level-4 {
+        padding-left: 80px;
     }
 </style>
 
@@ -94,31 +107,7 @@
     @if (IsOpen)
     {
         <div class="dropdown-menu show">
-            @foreach (var item in TopLevelItems)
-            {
-                @if (item.IsGroup)
-                {
-                    <div class="dropdown-group">
-                        <div class="group-header" @onclick="() => ToggleGroup(item.Id)">
-                            <span class="expand-icon">
-                                @(ExpandedGroups.Contains(item.Id) ? "-" : "+")
-                            </span>
-                            @item.Label
-                        </div>
-                        @if (ExpandedGroups.Contains(item.Id))
-                        {
-                            @RenderChildItems(item.Id)
-                        }
-                    </div>
-                }
-                else
-                {
-                    <div class="dropdown-item @(item.Id == SelectedValue ? "active" : "")"
-                         @onclick="() => SelectItem(item)">
-                        @GetIndentation(item.Level) @item.Label
-                    </div>
-                }
-            }
+            @RenderChildItems(null)
         </div>
     }
 </div>
@@ -137,8 +126,49 @@
             ExpandedGroups.Add(groupId);
         }
     }
-}
-@code {
+
+    private RenderFragment RenderChildItems(string? parentId) => builder =>
+    {
+        var children = Items.Where(i => i.ParentId == parentId).ToList();
+
+        foreach (var child in children)
+        {
+            if (child.IsGroup)
+            {
+                // Render group header
+                builder.OpenElement(0, "div");
+                builder.AddAttribute(1, "class", "group-header");
+                builder.AddAttribute(2, "onclick", EventCallback.Factory.Create(this, () => ToggleGroup(child.Id)));
+
+                builder.OpenElement(3, "span");
+                builder.AddAttribute(4, "class", "expand-icon");
+                builder.AddContent(5, ExpandedGroups.Contains(child.Id) ? "-" : "+");
+                builder.CloseElement();
+
+                builder.AddContent(6, child.Icon + " " + child.Label);
+                builder.CloseElement();
+
+                // Render child items if group is expanded
+                if (ExpandedGroups.Contains(child.Id))
+                {
+                    builder.OpenElement(7, "div");
+                    builder.AddAttribute(8, "class", "dropdown-group");
+                    builder.AddContent(9, RenderChildItems(child.Id));
+                    builder.CloseElement();
+                }
+            }
+            else
+            {
+                // Render individual item
+                builder.OpenElement(10, "div");
+                builder.AddAttribute(11, "class", $"dropdown-item {(child.Id == SelectedValue ? "active" : "")}");
+                builder.AddAttribute(12, "onclick", EventCallback.Factory.Create(this, () => SelectItem(child)));
+                builder.AddContent(13, child.Icon + " " + child.Label);
+                builder.CloseElement();
+            }
+        }
+    };
+
     [Parameter]
     public List<DropdownItem> Items { get; set; } = new();
 
@@ -151,9 +181,6 @@
     private bool IsOpen { get; set; }
     private DropdownItem SelectedItem => Items.FirstOrDefault(i => i.Id == SelectedValue);
 
-    private List<DropdownItem> TopLevelItems =>
-        Items.Where(i => string.IsNullOrEmpty(i.ParentId)).ToList();
-
     private void ToggleDropdown()
     {
         IsOpen = !IsOpen;
@@ -163,47 +190,12 @@
     {
         if (item.IsGroup) return;
 
-        SelectedValue = item.Id;
+        SelectedValue = $" {item.Icon} {item.Label} - {item.Id}";
         await SelectedValueChanged.InvokeAsync(SelectedValue);
         IsOpen = false;
         StateHasChanged();
     }
 
-    private RenderFragment RenderChildItems(string parentId) => builder =>
-    {
-        var children = Items.Where(i => i.ParentId == parentId).ToList();
-
-        foreach (var child in children)
-        {
-            builder.OpenElement(0, "div");
-            builder.AddAttribute(1, "class",
-                $"dropdown-item {(child.Id == SelectedValue ? "active" : "")} level-{child.Level}");
-            builder.AddAttribute(2, "onclick",
-                EventCallback.Factory.Create(this, () => SelectItem(child)));
-
-            // Add indentation
-            builder.AddContent(3, GetIndentation(child.Level));
-            builder.AddContent(4, child.Label);
-
-            builder.CloseElement();
-
-            // Recursively render children if this is a group
-            if (child.IsGroup)
-            {
-                builder.OpenElement(5, "div");
-                builder.AddAttribute(6, "class", "dropdown-group");
-                builder.AddContent(7, RenderChildItems(child.Id));
-                builder.CloseElement();
-            }
-        }
-    };
-
-    private string GetIndentation(int level)
-    {
-        return new string(' ', level * 4);
-    }
-
-    // Add these to the @code block
     private ElementReference dropdownRef;
     private int focusedIndex = -1;
     private List<DropdownItem> allVisibleItems = new();
@@ -217,7 +209,7 @@
     private void UpdateVisibleItems()
     {
         allVisibleItems = new List<DropdownItem>();
-        foreach (var item in TopLevelItems)
+        foreach (var item in Items.Where(i => string.IsNullOrEmpty(i.ParentId)))
         {
             AddItemAndChildren(item);
         }
