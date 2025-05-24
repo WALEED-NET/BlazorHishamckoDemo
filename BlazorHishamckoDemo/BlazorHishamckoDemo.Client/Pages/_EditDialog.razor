@@ -1,0 +1,73 @@
+﻿@using static BlazorHishamckoDemo.Client.Pages.Editable
+@inject IJSRuntime JS
+
+<div class="modal fade" id="editDialog" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Employee</h5>
+                <button type="button" class="close" @onclick="Cancel" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Name</label>
+                    <input @bind="CurrentItem.Name" class="form-control" />
+                </div>
+                <div class="form-group">
+                    <label>Department</label>
+                    <input @bind="CurrentItem.Department" class="form-control" />
+                </div>
+                <div class="form-group">
+                    <label>Salary</label>
+                    <input type="number" @bind="CurrentItem.Salary" class="form-control" />
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @onclick="Cancel">Cancel</button>
+                <button type="button" class="btn btn-primary" @onclick="Save">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public Employee CurrentItem { get; set; } = new();
+    [Parameter] public EventCallback<Employee> OnSave { get; set; }
+
+    private Employee originalItem = new();
+    private bool isVisible;
+
+    public void Show(Employee item)
+    {
+        originalItem = item.Clone();
+        CurrentItem = item.Clone();
+        isVisible = true;
+        StateHasChanged();
+
+        // Initialize modal with JS interop
+        JS.InvokeVoidAsync("showModal", "editDialog");
+    }
+
+    private void Save()
+    {
+        OnSave.InvokeAsync(CurrentItem);
+        Hide();
+    }
+
+    private void Cancel()
+    {
+        // Copy original values back
+        originalItem.Name = CurrentItem.Name;
+        originalItem.Department = CurrentItem.Department;
+        originalItem.Salary = CurrentItem.Salary;
+        Hide();
+    }
+
+    private void Hide()
+    {
+        isVisible = false;
+        JS.InvokeVoidAsync("hideModal", "editDialog");
+    }
+}

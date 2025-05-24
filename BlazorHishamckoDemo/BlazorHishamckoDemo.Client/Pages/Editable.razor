@@ -1,0 +1,253 @@
+﻿@page "/editable-table"
+@inject IJSRuntime JS
+
+<!-- Add these if not already present -->
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+<script>
+    // Show modal function
+    window.showModal = (modalId) => {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            $(modal).modal('show');
+        }
+    };
+
+    // Hide modal function
+    window.hideModal = (modalId) => {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            $(modal).modal('hide');
+        }
+    };
+</script>
+
+<_EditDialog @ref="editDialog" OnSave="HandleDialogSave" />
+
+<div class="mb-3">
+    <button @onclick="AddNewEmployee" class="btn btn-success">Add New</button>
+    <button @onclick="SaveAll" class="btn btn-primary ms-2">Save All</button>
+</div>
+
+<table class="table table-bordered table-striped">
+    <thead>
+        <tr>
+            <th>Actions</th>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Department</th>
+            <th>Salary</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var employee in employees)
+        {
+            <tr @key="employee.Id">
+                <td style="width: 200px;">
+                    <button @onclick="() => ToggleEdit(employee)" 
+                            class="btn btn-sm @(employee.IsEditing ? "btn-warning" : "btn-info")">
+                        @(employee.IsEditing ? "Cancel" : "Inline Edit")
+                    </button>
+                    <button @onclick="() => editDialog.Show(employee)" 
+                            class="btn btn-sm btn-primary ms-1">
+                        Dialog Edit
+                    </button>
+                </td>
+                <td>@employee.Id</td>
+                <td>
+                    @if (employee.IsEditing)
+                    {
+                        <input @bind="employee.Name"
+                            @ref="nameInputRef"
+                            @onkeydown="@(e => HandleKeyDown(e, employee, 0))"
+                            class="form-control form-control-sm" />
+                    }
+                    else
+                    {
+                        @employee.Name
+                    }
+                </td>
+                <td>
+                    @if (employee.IsEditing)
+                    {
+                        <input @bind="employee.Department"
+                               @ref="departmentInputRef"
+                               @onkeydown="@(e => HandleKeyDown(e, employee, 1))"
+                               class="form-control form-control-sm" />
+                    }
+                    else
+                    {
+                        @employee.Department
+                    }
+                </td>
+                <td>
+                    @if (employee.IsEditing)
+                    {
+                        <input type="number" @bind="employee.Salary"
+                               @ref="salaryInputRef"
+                               @onkeydown="@(e => HandleKeyDown(e, employee, 2))"
+                               class="form-control form-control-sm" />
+                    }
+                    else
+                    {
+                        @employee.Salary.ToString("C")
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+
+     private ElementReference nameInputRef;
+    private ElementReference departmentInputRef;
+    private ElementReference salaryInputRef;
+
+    private void UpdateInputRefs(Employee employee)
+    {
+        SetInputRef(employee, 0, nameInputRef);
+        SetInputRef(employee, 1, departmentInputRef);
+        SetInputRef(employee, 2, salaryInputRef);
+    }
+
+
+    
+    private List<Employee> employees = new();
+    private _EditDialog editDialog;
+    private Dictionary<(Employee, int), ElementReference> inputRefs = new();
+    private Employee currentEditingEmployee;
+    private int currentEditingField;
+
+    private void SetInputRef(Employee employee, int fieldIndex, ElementReference elementRef)
+    {
+        inputRefs[(employee, fieldIndex)] = elementRef;
+    }
+
+    protected override void OnInitialized()
+    {
+        // Sample data
+        employees = Enumerable.Range(1, 5).Select(i => new Employee
+        {
+            Id = i,
+            Name = $"Employee {i}",
+            Department = $"Dept {(i % 3) + 1}",
+            Salary = 50000 + (i * 5000)
+        }).ToList();
+    }
+
+    private async Task ToggleEdit(Employee employee)
+    {
+        if (employee.IsEditing)
+        {
+            employee.IsEditing = false;
+        }
+        else
+        {
+            employees.ForEach(e => e.IsEditing = false);
+            employee.IsEditing = true;
+            currentEditingEmployee = employee;
+            currentEditingField = 0;
+            await Task.Delay(50); // Allow UI to update
+            await FocusCurrentField();
+        }
+    }
+
+    private async Task FocusCurrentField()
+    {
+        if (inputRefs.TryGetValue((currentEditingEmployee, currentEditingField), out var elementRef))
+        {
+            await elementRef.FocusAsync();
+        }
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e, Employee employee, int fieldIndex)
+    {
+        switch (e.Key)
+        {
+            case "Enter":
+                if (fieldIndex < 2)
+                {
+                    currentEditingField = fieldIndex + 1;
+                    await FocusCurrentField();
+                }
+                else
+                {
+                    employee.IsEditing = false;
+                    var nextIndex = employees.IndexOf(employee) + 1;
+                    if (nextIndex < employees.Count)
+                    {
+                        await ToggleEdit(employees[nextIndex]);
+                    }
+                }
+                break;
+
+            case "Tab":
+                if (e.ShiftKey && fieldIndex > 0)
+                {
+                    currentEditingField = fieldIndex - 1;
+                    await FocusCurrentField();
+                }
+                break;
+
+            case "Escape":
+                employee.IsEditing = false;
+                break;
+        }
+    }
+
+    private void HandleDialogSave(Employee updatedEmployee)
+    {
+        var original = employees.FirstOrDefault(e => e.Id == updatedEmployee.Id);
+        if (original != null)
+        {
+            original.Name = updatedEmployee.Name;
+            original.Department = updatedEmployee.Department;
+            original.Salary = updatedEmployee.Salary;
+        }
+    }
+
+    private async Task AddNewEmployee()
+    {
+        var newId = employees.Any() ? employees.Max(e => e.Id) + 1 : 1;
+        var newEmployee = new Employee
+        {
+            Id = newId,
+            Name = "New Employee",
+            Department = "New Dept",
+            Salary = 50000,
+            IsEditing = true
+        };
+        
+        employees.Add(newEmployee);
+        currentEditingEmployee = newEmployee;
+        currentEditingField = 0;
+        await Task.Delay(50);
+        await FocusCurrentField();
+    }
+
+    private void SaveAll()
+    {
+        employees.ForEach(e => e.IsEditing = false);
+    }
+
+    public class Employee
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Department { get; set; } = string.Empty;
+        public decimal Salary { get; set; }
+        public bool IsEditing { get; set; }
+        public bool IsSelected { get; set; }
+
+        public Employee Clone() => new()
+        {
+            Id = this.Id,
+            Name = this.Name,
+            Department = this.Department,
+            Salary = this.Salary
+        };
+    }
+}
