@@ -1,0 +1,99 @@
+﻿@page "/TableWithCheckBox"
+
+<h3>Employees Table</h3>
+
+@if (showSelected && selectedEmployees.Any())
+{
+    <div class="alert alert-info mt-3">
+        <h5>Selected Employees (@selectedEmployees.Count):</h5>
+        <ul>
+            @foreach (var emp in selectedEmployees)
+            {
+                <li>@emp.Name (ID: @emp.Id, Department: @emp.Department)</li>
+            }
+        </ul>
+    </div>
+}
+
+<table class="table table-bordered table-striped">
+    <thead>
+        <tr>
+            <th>
+                <input type="checkbox"
+                       checked="@selectAll"
+                       @onchange="ToggleSelectAll" />
+                Select All
+            </th>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Department</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var employee in employees)
+        {
+            <tr @key="employee">
+                <td>
+                    <input type="checkbox"
+                           checked="@employee.IsSelected"
+                           @onchange="(() => OnEmployeeSelected(employee))" />
+                </td>
+                <td>@employee.Id</td>
+                <td>@employee.Name</td>
+                <td>@employee.Department</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<button class="btn btn-primary mt-2" @onclick="ShowSelected">Show Selected Employees</button>
+
+@code {
+    private List<Employee> employees = new();
+    private List<Employee> selectedEmployees = new();
+    private bool selectAll = false;
+    private bool showSelected = false;
+
+    protected override void OnInitialized()
+    {
+        // Initialize with sample data
+        employees = new List<Employee>
+        {
+            new Employee { Id = 1, Name = "John Doe", Department = "IT" },
+            new Employee { Id = 2, Name = "Jane Smith", Department = "HR" },
+            new Employee { Id = 3, Name = "Mike Johnson", Department = "Finance" },
+            new Employee { Id = 4, Name = "Sarah Williams", Department = "Marketing" }
+        };
+    }
+
+    private void ToggleSelectAll(ChangeEventArgs e)
+    {
+        selectAll = (bool)e.Value;
+        foreach (var employee in employees)
+        {
+            employee.IsSelected = selectAll;
+        }
+    }
+
+    private void OnEmployeeSelected(Employee employee)
+    {
+        employee.IsSelected = !employee.IsSelected;
+        selectAll = employees.All(e => e.IsSelected);
+    }
+
+    private void ShowSelected()
+    {
+        // هنا نعرض الموظفين المحددين وتقدر تضيف اي اكشن اخر
+        selectedEmployees = employees.Where(e => e.IsSelected).ToList();
+        showSelected = true;
+        StateHasChanged();
+    }
+
+    public class Employee
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+        public string Department { get; set; }
+        public bool IsSelected { get; set; }
+    }
+}
