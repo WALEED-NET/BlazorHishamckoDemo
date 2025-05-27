@@ -1,11 +1,14 @@
-using BlazorHishamckoDemo.Client.Pages;
+﻿using BlazorHishamckoDemo.Client.Services;
 using BlazorHishamckoDemo.Components;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
+    .AddInteractiveServerComponents()
     .AddInteractiveWebAssemblyComponents();
+
+builder.Services.AddScoped<ExcelService>();
 
 var app = builder.Build();
 
@@ -28,6 +31,7 @@ app.UseAntiforgery();
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
+    .AddInteractiveServerRenderMode()
     .AddInteractiveWebAssemblyRenderMode()
     .AddAdditionalAssemblies(typeof(BlazorHishamckoDemo.Client._Imports).Assembly);
 

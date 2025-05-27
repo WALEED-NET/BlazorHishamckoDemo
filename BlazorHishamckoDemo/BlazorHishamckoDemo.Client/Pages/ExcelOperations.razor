@@ -1,0 +1,160 @@
+﻿@page "/excel"
+@using BlazorHishamckoDemo.Client.Services
+@using Microsoft.AspNetCore.Components.Forms
+@inject ExcelService ExcelService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+<script>
+        window.saveAsFile = function (filename, byteBase64) {
+        const link = document.createElement('a');
+        link.download = filename;
+        link.href = "data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64," + byteBase64;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+</script>
+
+
+<h3>Excel Operations</h3>
+
+<div class="row mb-3">
+    <div class="col-md-6">
+        <h4>Generate Sample Excel</h4>
+        <button class="btn btn-info mb-3" @onclick="GenerateSampleData">Generate Sample Data</button>
+
+        <h4>Upload Excel File</h4>
+        <EditForm Model="@uploadModel" OnValidSubmit="@HandleFileUpload" enctype="multipart/form-data">
+            <InputFile OnChange="@OnInputFileChange" accept=".xlsx,.xls" />
+            <button type="submit" class="btn btn-primary mt-2" disabled="@(uploadFile == null)">Upload and Read</button>
+        </EditForm>
+    </div>
+</div>
+
+@if (excelData != null && excelData.Any())
+{
+    <div class="row">
+        <div class="col-md-12">
+            <h4>Excel Data</h4>
+            <button class="btn btn-success mb-3" @onclick="DownloadExcel">Download as Excel</button>
+
+            <table class="table table-bordered table-striped">
+                <thead>
+                    <tr>
+                        @foreach (var header in excelData.First().Keys)
+                        {
+                            <th>@header</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in excelData)
+                    {
+                        <tr>
+                            @foreach (var cell in row)
+                            {
+                                <td>@cell.Value</td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@code {
+    private IBrowserFile uploadFile;
+    private object uploadModel = new();
+    private List<Dictionary<string, string>> excelData;
+
+    private void OnInputFileChange(InputFileChangeEventArgs e)
+    {
+        uploadFile = e.File;
+    }
+
+    private async Task HandleFileUpload()
+    {
+        if (uploadFile == null) return;
+
+        // Basic file validation
+        if (uploadFile.Size == 0)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "The file is empty");
+            return;
+        }
+
+        if (!uploadFile.Name.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) &&
+            !uploadFile.Name.EndsWith(".xls", StringComparison.OrdinalIgnoreCase))
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Please upload a valid Excel file (.xlsx or .xls)");
+            return;
+        }
+
+        try
+        {
+            await using var stream = uploadFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            excelData = await ExcelService.ReadExcel(stream);
+
+            if (excelData == null || !excelData.Any())
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "The Excel file contains no readable data");
+            }
+            else
+            {
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error processing Excel file: {ex.Message}");
+        }
+    }
+
+    private async Task GenerateSampleData()
+    {
+        // Create sample data
+        excelData = new List<Dictionary<string, string>>();
+
+        var headers = new[] { "ID", "Name", "Email", "Department", "JoinDate" };
+        var sampleData = new[]
+        {
+            new { ID = "1", Name = "John Doe", Email = "john@example.com", Department = "IT", JoinDate = "2020-01-15" },
+            new { ID = "2", Name = "Jane Smith", Email = "jane@example.com", Department = "HR", JoinDate = "2019-05-22" },
+            new { ID = "3", Name = "Bob Johnson", Email = "bob@example.com", Department = "Finance", JoinDate = "2021-03-10" },
+            new { ID = "4", Name = "Alice Brown", Email = "alice@example.com", Department = "Marketing", JoinDate = "2018-11-05" }
+        };
+
+        foreach (var item in sampleData)
+        {
+            var row = new Dictionary<string, string>();
+            row["ID"] = item.ID;
+            row["Name"] = item.Name;
+            row["Email"] = item.Email;
+            row["Department"] = item.Department;
+            row["JoinDate"] = item.JoinDate;
+            excelData.Add(row);
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task DownloadExcel()
+    {
+        if (excelData != null && excelData.Any())
+        {
+            try
+            {
+                var fileBytes = ExcelService.WriteExcel(excelData);
+                var fileName = "sample_data.xlsx";
+                var base64String = Convert.ToBase64String(fileBytes);
+
+                await JSRuntime.InvokeVoidAsync("saveAsFile", fileName, base64String);
+            }
+            catch (Exception ex)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", $"Error generating Excel file: {ex.Message}");
+            }
+        }
+    }
+}
